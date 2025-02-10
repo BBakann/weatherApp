@@ -11,6 +11,12 @@ export default function Layout() {
       }}
     >
       <Stack.Screen
+        name="loadingScreen"
+        options={{
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
         name="home"
         options={{
           gestureEnabled: false,

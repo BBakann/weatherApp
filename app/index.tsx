@@ -33,16 +33,16 @@ export default function Index() {
   }, []);
 
   return (
-    <View className="flex-1 bg-[#073ed5] justify-center items-center">
+    <View className="flex-1 bg-[#003060] justify-center items-center">
       <Animated.View
         style={{
-          transform: [{ scale: scaleAnim }, { translateY: slideAnim }],
+          transform: [{ scale: scaleAnim }, { translateY: slideAnim }], //transform dönüşümler için
         }}
         className="items-center"
       >
         <Image
           source={require("../assets/images/weather-app.png")}
-          className="w-[200px] h-[200px] mb-4"
+          className="w-[175px] h-[175px] mb-4"
           resizeMode="contain"
         />
         <Text className="text-white text-4xl font-bold">WeatherApp</Text>
