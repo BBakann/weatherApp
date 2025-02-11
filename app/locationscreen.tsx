@@ -1,44 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+
 const LocationScreen = () => {
+  // Seçilen konumu tutan state
   const [selectedLocation, setSelectedLocation] = useState({
-    latitude: 39.9334,
-    longitude: 32.8597,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
+    latitude: 39.936306,
+    longitude: 32.844424,
+    latitudeDelta: 0.04,
+    longitudeDelta: 0.04,
   });
 
+  // Haritaya tıklama olayını işleyen fonksiyon
+  const handleMapPress = (event: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setSelectedLocation((prev) => ({
+      ...prev,
+      latitude,
+      longitude,
+    }));
+  };
+
+  // Konumu onaylama ve /home sayfasına yönlendirme
   const handleConfirmLocation = () => {
-    const latitude = Number(selectedLocation.latitude.toFixed(6));
-    const longitude = Number(selectedLocation.longitude.toFixed(6));
-    
     router.replace({
-      pathname: "/home",
+      pathname: '/home',
       params: {
-        lat: latitude.toString(),
-        lon: longitude.toString()
-      }
+        lat: selectedLocation.latitude.toFixed(6),
+        lon: selectedLocation.longitude.toFixed(6),
+      },
     });
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* MapView: Harita bileşeni */}
       <MapView
         style={styles.map}
         initialRegion={selectedLocation}
-        onPress={(e) => {
-          const { latitude, longitude } = e.nativeEvent.coordinate;
-          setSelectedLocation({
-            ...selectedLocation,
-            latitude,
-            longitude,
-          });
-        }}
+        onPress={handleMapPress}
       >
+        {/* Harita üzerinde seçilen konumu işaretleyen Marker */}
         {selectedLocation && (
           <Marker
             coordinate={{
@@ -49,7 +54,8 @@ const LocationScreen = () => {
           />
         )}
       </MapView>
-      
+
+      {/* Koordinatların gösterileceği alan */}
       <View style={styles.coordinatesContainer}>
         <Text style={styles.coordinatesText}>
           Enlem: {selectedLocation.latitude.toFixed(6)}
@@ -59,24 +65,25 @@ const LocationScreen = () => {
         </Text>
       </View>
 
-      <TouchableOpacity
-        style={styles.confirmButton}
-        onPress={handleConfirmLocation}
-      >
+      {/* Konumu onaylama butonu */}
+      <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmLocation}>
         <Text style={styles.buttonText}>Konumu Onayla</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
 };
 
+// Stil tanımlamaları
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // Map: Harita stili
   map: {
     width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height - 100,
+    height: Dimensions.get('window').height,
   },
+  // Koordinatların görüneceği kutu
   coordinatesContainer: {
     position: 'absolute',
     top: 20,
@@ -86,10 +93,12 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
   },
+  // Koordinat yazılarının stili
   coordinatesText: {
     fontSize: 14,
     marginBottom: 5,
   },
+  // Konumu onayla butonunun stili
   confirmButton: {
     position: 'absolute',
     bottom: 20,
@@ -100,6 +109,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
+  // Buton metninin stili
   buttonText: {
     color: 'white',
     fontSize: 16,

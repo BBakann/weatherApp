@@ -1,304 +1,200 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, Image, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useState, useEffect, useCallback } from "react"; 
+import { View, Text, ActivityIndicator, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context"; 
 import { useRoute } from "@react-navigation/native";
-import { RouteProp } from "@react-navigation/native";
+import { RouteProp } from "@react-navigation/native"; 
 import * as Location from "expo-location";
-import { router } from "expo-router";
 import { WEATHER_API_KEY } from '@env';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import WeatherDisplay from '../app/components/WeatherDisplay'; 
+import LocationButtons from '../app/components/LocationButtons'; 
+import { Ionicons } from '@expo/vector-icons'; 
+
 
 const Home = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Loading durumu ve error mesajları için state'ler
+  const [loading, setLoading] = useState(false); // Yükleniyor durumu 
+  const [error, setError] = useState<string | null>(null); // Hata mesajı
 
+  // RouteParam'ları tanımlama
   type RouteParams = {
     params: {
-      lat?: string;
+      lat?: string; 
       lon?: string;
     };
   };
 
-  const route = useRoute<RouteProp<RouteParams>>();
+  // Route parametrelerini almak için useRoute
+  const route = useRoute<RouteProp<RouteParams>>(); // Ekranın route parametrelerine erişmesi
+
+  // Hava durumu ve tahmin verisi için gerekli tipler
   type Weather = {
-    name: string;
+    name: string; // Şehir ismi
     weather: { 
-      description: string;
-      icon: string;
+      description: string; // Hava durumu açıklaması
+      icon: string; // Hava durumu simgesi
     }[];
-    main: { temp: number };
+    main: { temp: number }; // Ana sıcaklık bilgisi
     coord: {
-      lat: number;
-      lon: number;
+      lat: number; 
+      lon: number; 
     };
   };
 
   type ForecastItem = {
-    dt: number;
+    dt: number; // Tarih
     main: {
-      temp: number;
+      temp: number; // Sıcaklık
     };
     weather: {
-      description: string;
-      icon: string;
+      description: string; // Hava durumu açıklaması
+      icon: string; // Hava durumu simgesi
     }[];
   };
 
-  const [weather, setWeather] = useState<Weather | null>(null);
-  const [forecast, setForecast] = useState<ForecastItem[]>([]);
-  
+  // State'ler: hava durumu ve tahminler
+  const [weather, setWeather] = useState<Weather | null>(null); // Anlık hava durumu verisi
+  const [forecast, setForecast] = useState<ForecastItem[]>([]); // 5 günlük hava durumu tahmin verisi
+
+  // Hava durumu verisini API'den çekmek için fetchWeather fonksiyonu
   const fetchWeather = useCallback(async (lat: number, lon: number) => {
-    setWeather(null);
+    setWeather(null); // Önceki verileri sıfırlama
     setForecast([]);
     
     const loadingTimeout = setTimeout(() => {
-      setLoading(true);
-    }, 300);
+      setLoading(true); // yükleniyor ikonu
+    }, 300); // 300ms sonra yükleniyor göstergesi devreye girer
 
-    setError(null);
+    setError(null); // Hata mesajını sıfırlıyoruz
     
-    const latitude = Number(lat.toFixed(6));
-    const longitude = Number(lon.toFixed(6));
+    // Enlem ve boylamı 6 haneli hassasiyete yuvarlıyoruz
+    const latitude = Number(lat.toFixed(6)); // Enlemi 6 ondalıklı sayıya yuvarlıyoruz
+    const longitude = Number(lon.toFixed(6)); // Boylamı 6 ondalıklı sayıya yuvarlıyoruz
     
     try {
+      // OpenWeather API'sine hava durumu isteği
       const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${WEATHER_API_KEY}&units=metric&lang=tr`;
-      const weatherResponse = await fetch(weatherUrl);
-      const weatherData = await weatherResponse.json();
+      const weatherResponse = await fetch(weatherUrl); // Hava durumu verisi almak için fetch 
+      const weatherData = await weatherResponse.json(); // JSON formatında gelen veriyi işleme
       
+      // 5 günlük hava durumu tahminleri için API isteği
       const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${WEATHER_API_KEY}&units=metric&lang=tr`;
-      const forecastResponse = await fetch(forecastUrl);
-      const forecastData = await forecastResponse.json();
+      const forecastResponse = await fetch(forecastUrl); // Hava durumu tahminlerini almak için fetch kullanıyoruz
+      const forecastData = await forecastResponse.json(); // JSON formatında gelen veriyi işliyoruz
       
       if (weatherData.cod && weatherData.cod !== 200) {
+        // Eğer API'den hata kodu gelirse (200 dışı), hata mesajı fırlatıyoruz
         throw new Error(weatherData.message || 'Hava durumu bilgisi alınamadı');
       }
 
-      // Bugünün tarihini al
+      // Bugünün tarihi
       const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0); // Bugün 00:00'a ayarlanmış tarih
 
-      // Bugünün verisini weatherData'dan al
+      // Bugünün verisi
       const dailyForecasts = [{
-        dt: Math.floor(Date.now() / 1000), // Şu anki timestamp
-        main: weatherData.main,
-        weather: weatherData.weather
+        dt: Math.floor(Date.now() / 1000), // Şu an 
+        main: weatherData.main, // Ana sıcaklık bilgisi
+        weather: weatherData.weather // Hava durumu açıklamaları ve simgeler
       }];
 
-      // Sonraki 4 günün öğlen verilerini ekle
+      // Sonraki 4 günün öğle saatine ait verilerini ekliyoruz
       const remainingForecasts = forecastData.list.reduce((acc: ForecastItem[], item: ForecastItem) => {
-        const date = new Date(item.dt * 1000);
+        const date = new Date(item.dt * 1000); // Unix timestamp'ini Date nesnesine çeviriyoruz
         const itemDay = new Date(date);
-        itemDay.setHours(0, 0, 0, 0);
+        itemDay.setHours(0, 0, 0, 0);  
 
-        // Bugünden sonraki günler için öğlen 12:00 verilerini al
+        // Öğlen 12:00'deki tahmin verilerini alıyoruz
         if (itemDay > today && date.getHours() === 12 && acc.length < 4) {
-          acc.push(item);
+          acc.push(item); // 4 tane öğlen verisi eklenene kadar devam ediyor
         }
-        return acc;
+        return acc; // Biriktirilen tahminleri geri döndürüyoruz
       }, []);
 
-      setWeather(weatherData);
+      // Hava durumu ve tahmin verilerini state'lere set ediyoruz
+      setWeather(weatherData); 
       setForecast([...dailyForecasts, ...remainingForecasts]);
     } catch (error) {
+      
       console.error("Hava durumu alınamadı", error);
       setError("Hava durumu bilgisi alınamadı. Lütfen tekrar deneyin.");
     } finally {
-      clearTimeout(loadingTimeout);
-      setLoading(false);
+      // Timeout'ı temizliyoruz ve loading durumunu bitiriyoruz
+      clearTimeout(loadingTimeout); // Loading zaman aşımını temizliyoruz
+      setLoading(false); // Yükleniyor durumu bitiyor
     }
-  }, []);
+  }, []); 
 
-  
+  // Konum parametreleri işlenip hava durumu alınsın diye bir ref kullanıyoruz
   const coordsProcessed = React.useRef(false);
 
+  // Eğer route parametrelerinde lat ve lon varsa ve daha önce işlem yapılmamışsa
   useEffect(() => {
     if (route.params?.lat && route.params?.lon && !coordsProcessed.current) {
-      const latitude = Number(route.params.lat);
-      const longitude = Number(route.params.lon);
+      const latitude = Number(route.params.lat); // Latitüd (enlem) parametresini alıyoruz
+      const longitude = Number(route.params.lon); // Longitüd (boylam) parametresini alıyoruz
       
-      
-      coordsProcessed.current = true;
-      
-      
-      fetchWeather(latitude, longitude);
+      coordsProcessed.current = true; // İşlem yapıldığını belirtiyoruz
+      fetchWeather(latitude, longitude); // Hava durumu verisini alıyoruz
     }
-  }, [route.params]);
+  }, [route.params]); // route.params değiştiğinde bu effect çalışacak
 
-  // Route değiştiğinde ref'i sıfırla
+  // Route değiştiğinde coordsProcessed ref'ini sıfırlıyoruz
   useEffect(() => {
     return () => {
-      coordsProcessed.current = false;
+      coordsProcessed.current = false; // Component unmount olduğunda işlem yapmayı sıfırlıyoruz
     };
   }, []);
 
+  // Kullanıcının konumunu almak için fonksiyon
   const getCurrentLocation = async () => {
     try {
+      // Konum izni istiyoruz
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        setError("Konum izni reddedildi");
+        setError("Konum izni reddedildi. (Konum servisi kapalı olabilir.)");
         return;
       }
 
+      // Kullanıcının mevcut konumunu alıyoruz
       const location = await Location.getCurrentPositionAsync({});
-      fetchWeather(location.coords.latitude, location.coords.longitude);
+      fetchWeather(location.coords.latitude, location.coords.longitude); // Konumu aldıktan sonra hava durumu verisi
     } catch (error) {
-      setError("Konum alınamadı. Lütfen tekrar deneyin.");
+      setError("Konum alınamadı. Lütfen tekrar deneyin."); // Konum alınamazsa hata mesajı 
     }
-  };
-
-  const WeatherDisplay = () => {
-    if (!weather || !weather.weather || !weather.weather[0]) return null;
-
-    const iconUrl = `https://openweathermap.org/img/wn/${weather.weather[0].icon}@4x.png`;
-
-    return (
-      <View className="w-full space-y-4">
-        {/* Ana Hava Durumu Kartı */}
-        <View className="bg-white/90 p-6 rounded-3xl shadow-lg backdrop-blur-sm border border-[#68bbe3]/20">
-          <View className="items-center">
-            <View className="flex-row items-center space-x-2">
-              <Ionicons name="location" size={24} color="#003060" />
-              <Text className="text-3xl font-bold text-[#003060]">
-                {weather.name}
-              </Text>
-            </View>
-            <Image 
-              source={{ uri: iconUrl }}
-              className="w-32 h-32"
-              resizeMode="contain"
-            />
-            <Text className="text-8xl font-bold text-[#0e86d4]">
-              {Math.round(weather.main.temp)}°
-            </Text>
-            <Text className="text-xl text-[#055c9d] capitalize font-medium">
-              {weather.weather[0].description}
-            </Text>
-          </View>
-        </View>
-
-        {/* 5 Günlük Tahmin */}
-        <View className="bg-white/90 p-4 rounded-3xl shadow-lg backdrop-blur-sm border border-[#68bbe3]/20">
-          <View className="flex-row items-center justify-between mb-2">
-            <View className="flex-row items-center space-x-2">
-              <MaterialCommunityIcons name="calendar-clock" size={24} color="#003060" />
-              <Text className="text-[#003060] font-bold text-lg">
-                5 Günlük Tahmin
-              </Text>
-            </View>
-          </View>
-          
-          {/* Bilgilendirme yazısı */}
-          <Text className="text-[#003060]/60 text-xs mb-4 italic px-1">
-            * Bugünün mevcut durumu ve sonraki günlerin saat 12:00 tahminleri gösterilmektedir.
-          </Text>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row space-x-3">
-              {forecast.map((item, index) => {
-                const date = new Date(item.dt * 1000);
-                return (
-                  <View key={index} className="items-center bg-[#68bbe3]/10 p-4 rounded-2xl w-28">
-                    <Text className="text-[#003060] font-bold mb-1">
-                      {date.toLocaleDateString('tr-TR', { weekday: 'short' })}
-                    </Text>
-                    <Text className="text-[#003060]/60 text-xs mb-2">
-                      {date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
-                    </Text>
-                    <Image 
-                      source={{ uri: `https://openweathermap.org/img/wn/${item.weather[0].icon}@2x.png` }}
-                      className="w-16 h-16"
-                      resizeMode="contain"
-                    />
-                    <Text className="text-[#0e86d4] text-xl font-bold">
-                      {Math.round(item.main.temp)}°
-                    </Text>
-                    <Text className="text-[#055c9d] text-xs text-center mt-1">
-                      {item.weather[0].description}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </ScrollView>
-        </View>
-
-        {/* Konum Detayları */}
-        <View className="bg-white/90 p-4 rounded-3xl shadow-lg backdrop-blur-sm border border-[#68bbe3]/20">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center space-x-2">
-              <MaterialCommunityIcons name="crosshairs-gps" size={20} color="#003060" />
-              <View>
-                <Text className="text-[#003060] font-medium">Koordinatlar</Text>
-                <Text className="text-[#0e86d4] text-lg">
-                  {weather.coord.lat.toFixed(2)}°N, {weather.coord.lon.toFixed(2)}°E
-                </Text>
-              </View>
-            </View>
-            <View className="flex-row items-center space-x-2">
-              <MaterialCommunityIcons name="clock-outline" size={20} color="#003060" />
-              <View>
-                <Text className="text-[#003060] font-medium">Son Güncelleme</Text>
-                <Text className="text-[#0e86d4] text-lg">
-                  {new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </View>
-    );
   };
 
   return (
     <SafeAreaView className="flex-1 bg-gradient-to-b from-[#68bbe3]/20 to-[#003060]/10">
-      {/* Header */}
+      
       <View className="bg-[#055c9d] pt-6 pb-16 rounded-b-[40px] shadow-lg">
         <Text className="text-3xl font-bold text-center text-white">
           Hava Durumu
         </Text>
       </View>
 
-      {/* Main Content */}
+      
       <View className="flex-1 px-4">
-        {/* Konum Butonları */}
-        <View className="-mt-8 mb-6">
-          <View className="bg-white/90 p-2 rounded-2xl shadow-lg flex-row justify-between border border-[#68bbe3]/20">
-            <TouchableOpacity
-              className="bg-[#0e86d4] flex-1 mx-1 py-4 rounded-xl flex-row items-center justify-center space-x-2"
-              onPress={() => router.push("/locationscreen")}
-            >
-              <MaterialCommunityIcons name="map-marker-radius" size={24} color="white" />
-              <Text className="text-white font-semibold">
-                Haritadan Seç
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="bg-[#0e86d4] flex-1 mx-1 py-4 rounded-xl flex-row items-center justify-center space-x-2"
-              onPress={getCurrentLocation}
-            >
-              <Ionicons name="location" size={24} color="white" />
-              <Text className="text-white font-semibold">
-                Konumumu Bul
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        {/* Konum butonları */}
+        <LocationButtons onGetCurrentLocation={getCurrentLocation} />
 
-        {/* Weather Content */}
+        {/* Hava durumu ve tahmin bilgileri */}
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
           <View className="flex-1 relative mb-6">
             {error && (
+              // Hata mesajı
               <View className="bg-red-100/90 p-4 rounded-xl w-full mb-4 flex-row items-center justify-center space-x-2">
                 <Ionicons name="warning" size={24} color="#dc2626" />
                 <Text className="text-red-600 text-center font-medium">{error}</Text>
               </View>
             )}
 
-            {!loading && <WeatherDisplay />}
+            {/* Yükleniyor durumu */}
+            {!loading && <WeatherDisplay weather={weather} forecast={forecast} />}
 
+            {/* Loading göstergesi */}
             {loading && (
-              <View className="absolute inset-0 bg-[#68bbe3]/10 backdrop-blur-sm flex items-center justify-center">
-                <ActivityIndicator size="large" color="#055c9d" />
+              <View className="absolute inset-0 bg-[#68bbe3]/20 flex justify-center items-center">
+                <ActivityIndicator size="large" color="#1e3a8a" />
               </View>
             )}
           </View>
